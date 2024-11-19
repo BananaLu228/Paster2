@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Текстовый Хостинг</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #text-input {
+            width: 100%;
+            min-height: 300px;
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: vertical;
+        }
+        #publish-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #result-link {
+            width: 100%;
+            padding: 10px;
+            margin-top: 15px;
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .view-container {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 30px;
+            background-color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #copy-btn {
+            margin-left: 10px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .copyable-text {
+            color: red;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        .copyable-text:hover {
+            opacity: 0.7;
+        }
+        .code-block {
+            position: relative;
+            margin-bottom: 15px;
+        }
+        .copy-code-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: background-color 0.3s;
+        }
+        .copy-code-btn:hover {
+            background-color: #1976D2;
+        }
+        pre {
+            background-color: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            position: relative;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="create-page">
+        <h1>📝 Текстовый Хостинг</h1>
+        <textarea id="text-input" placeholder="Введите ваш текст..."></textarea>
+        <button id="publish-btn">Опубликовать</button>
+        <input type="text" id="result-link" readonly placeholder="Ссылка появится после публикации">
+        <button id="copy-btn" style="display:none;">Копировать ссылку</button>
+    </div>
+
+    <div class="view-container" id="view-page" style="display:none;">
+        <div id="content"></div>
+    </div>
+
+    <script>
+        function generateUniqueId() {
+            return Math.random().toString(36).substring(2, 10);
+        }
+
+        function escapeHtml(unsafe) {
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+        }
+
+        function formatText(text) {
+            // Обработка кода (```код```)
+            text = text.replace(/```([\s\S]*?)```/g, (match, code) => {
+                const escapedCode = escapeHtml(code.trim());
+                return `
+                    <div class="code-block">
+                        <pre><code>${escapedCode}</code></pre>
+                        <button class="copy-code-btn" onclick="copyCodeBlock(this)">
+                            Копировать
+                        </button>
+                    </div>
+                `;
+            });
+
+            // Обработка инлайн-кода (`текст`)
+            text = text.replace(/`([^`]+)`/g, (match, code) => {
+                return `<span class="copyable-text" onclick="copyText(this)">${escapeHtml(code)}</span>`;
+            });
+
+            // Замена переводов строк
+            text = text.replace(/\n/g, '<br>');
+
+            return text;
+        }
+
+        function copyCodeBlock(button) {
+            // Находим код в родительском блоке
+            const codeBlock = button.parentElement.querySelector('code');
+            const codeToCopy = codeBlock.textContent;
+
+            // Копируем код
+            navigator.clipboard.writeText(codeToCopy).then(() => {
+                button.textContent = 'Скопировано!';
+                button.style.backgroundColor = '#4CAF50';
+                
+                setTimeout(() => {
+                    button.textContent = 'Копировать';
+                    button.style.backgroundColor = '#2196F3';
+                }, 2000);
+            });
+        }
+
+        function copyText(element) {
+            const text = element.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                element.style.color = 'green';
+                setTimeout(() => {
+                    element.style.color = 'red';
+                }, 1000);
+            });
+        }
+
+        function publishText() {
+            const textInput = document.getElementById('text-input');
+            const text = textInput.value.trim();
+
+            if (!text) {
+                alert('Введите текст');
+                return;
+            }
+
+            const postId = generateUniqueId();
+            
+            // Сохраняем текст в localStorage
+            localStorage.setItem(postId, text);
+
+            // Генерируем полную ссылку
+            const postLink = `${window.location.origin}${window.location.pathname}?id=${postId}`;
+
+            // Показываем ссылку
+            const resultLink = document.getElementById('result-link');
+            resultLink.value = postLink;
+
+            const copyBtn = document.getElementById('copy-btn');
+            copyBtn.style.display = 'inline-block';
+            copyBtn.onclick = () => {
+                resultLink.select();
+                navigator.clipboard.writeText(postLink).then(() => {
+                    copyBtn.textContent = 'Скопировано!';
+                    setTimeout(() => {
+                        copyBtn.textContent = 'Копировать ссылку';
+                    }, 2000);
+                });
+            };
+        }
+
+        function viewPost() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const postId = urlParams.get('id');
+
+            if (postId) {
+                const createPage = document.getElementById('create-page');
+                const viewPage = document.getElementById('view-page');
+                const content = document.getElementById('content');
+
+                createPage.style.display = ' none';
+                viewPage.style.display = 'block';
+
+                const storedText = localStorage.getItem(postId);
+                if (storedText) {
+                    content.innerHTML = formatText(storedText);
+                } else {
+                    content.innerHTML = '<p>Пост не найден.</p>';
+                }
+            }
+        }
+
+        document.getElementById('publish-btn').addEventListener('click', publishText);
+        window.onload = viewPost;
+    </script>
+</body>
+</html>
